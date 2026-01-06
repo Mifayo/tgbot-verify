@@ -27,12 +27,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: 
     username = user.username or ""
     full_name = user.full_name or ""
 
-    # 已初始化直接返回
+    # If initialized, return
     if db.user_exists(user_id):
         await update.message.reply_text(
-            f"欢迎回来，{full_name}！\n"
-            "您已经初始化过了。\n"
-            "发送 /help 查看可用命令。"
+            f"Welcome back, {full_name}!\n"
+            "You have already initialized.\n"
+            "Send /help to view available commands."
         )
         return
 
@@ -46,12 +46,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: 
         except Exception:
             invited_by = None
 
-    # 创建用户
+    # Create user
     if db.create_user(user_id, username, full_name, invited_by):
         welcome_msg = get_welcome_message(full_name, bool(invited_by))
         await update.message.reply_text(welcome_msg)
     else:
-        await update.message.reply_text("注册失败，请稍后重试。")
+        await update.message.reply_text("Registration failed, please try again later.")
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database):
@@ -80,16 +80,16 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db
     user_id = update.effective_user.id
 
     if db.is_user_blocked(user_id):
-        await update.message.reply_text("您已被拉黑，无法使用此功能。")
+        await update.message.reply_text("You have been blocked from using this function.")
         return
 
     user = db.get_user(user_id)
     if not user:
-        await update.message.reply_text("请先使用 /start 注册。")
+        await update.message.reply_text("Please register with /start first.")
         return
 
     await update.message.reply_text(
-        f"💰 积分余额\n\n当前积分：{user['balance']} 分"
+        f"💰 Point Balance\n\nCurrent Points: {user['balance']} points"
     )
 
 
@@ -107,7 +107,7 @@ async def checkin_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db
     #     "• 使用卡密 /use <卡密>"
     # )
     # return
-    
+
     # ===== 以下代码已禁用 =====
     if db.is_user_blocked(user_id):
         await update.message.reply_text("您已被拉黑，无法使用此功能。")
@@ -117,20 +117,20 @@ async def checkin_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db
         await update.message.reply_text("请先使用 /start 注册。")
         return
 
-    # 第1层检查：在命令处理器层面检查
+    # Level 1 check: Check at command handler level
     if not db.can_checkin(user_id):
-        await update.message.reply_text("❌ 今天已经签到过了，明天再来吧。")
+        await update.message.reply_text("❌ You have already checked in today, please come back tomorrow.")
         return
 
-    # 第2层检查：在数据库层面执行（SQL原子操作）
+    # Level 2 check: Execute at database level (SQL atomic operation)
     if db.checkin(user_id):
         user = db.get_user(user_id)
         await update.message.reply_text(
-            f"✅ 签到成功！\n获得积分：+1\n当前积分：{user['balance']} 分"
+            f"✅ Check-in Successful!\nPoints Received: +1\nCurrent Points: {user['balance']} points"
         )
     else:
-        # 如果数据库层面返回False，说明今天已签到（双重保险）
-        await update.message.reply_text("❌ 今天已经签到过了，明天再来吧。")
+        # If database level returns False, it means already checked in today (double safety)
+        await update.message.reply_text("❌ You have already checked in today, please come back tomorrow.")
 
 
 async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Database):
@@ -141,19 +141,19 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db:
     user_id = update.effective_user.id
 
     if db.is_user_blocked(user_id):
-        await update.message.reply_text("您已被拉黑，无法使用此功能。")
+        await update.message.reply_text("You have been blocked from using this function.")
         return
 
     if not db.user_exists(user_id):
-        await update.message.reply_text("请先使用 /start 注册。")
+        await update.message.reply_text("Please register with /start first.")
         return
 
     bot_username = context.bot.username
     invite_link = f"https://t.me/{bot_username}?start={user_id}"
 
     await update.message.reply_text(
-        f"🎁 您的专属邀请链接：\n{invite_link}\n\n"
-        "每邀请 1 位成功注册，您将获得 2 积分。"
+        f"🎁 Your Exclusive Invite Link:\n{invite_link}\n\n"
+        "You will receive 2 points for every successful registration invited."
     )
 
 
@@ -165,16 +165,16 @@ async def use_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Da
     user_id = update.effective_user.id
 
     if db.is_user_blocked(user_id):
-        await update.message.reply_text("您已被拉黑，无法使用此功能。")
+        await update.message.reply_text("You have been blocked from using this function.")
         return
 
     if not db.user_exists(user_id):
-        await update.message.reply_text("请先使用 /start 注册。")
+        await update.message.reply_text("Please register with /start first.")
         return
 
     if not context.args:
         await update.message.reply_text(
-            "使用方法: /use <卡密>\n\n示例: /use wandouyu"
+            "Usage: /use <code>\n\nExample: /use code123"
         )
         return
 
@@ -182,15 +182,15 @@ async def use_command(update: Update, context: ContextTypes.DEFAULT_TYPE, db: Da
     result = db.use_card_key(key_code, user_id)
 
     if result is None:
-        await update.message.reply_text("卡密不存在，请检查后重试。")
+        await update.message.reply_text("Code does not exist, please check and try again.")
     elif result == -1:
-        await update.message.reply_text("该卡密已达到使用次数上限。")
+        await update.message.reply_text("This code has reached its maximum usage limit.")
     elif result == -2:
-        await update.message.reply_text("该卡密已过期。")
+        await update.message.reply_text("This code has expired.")
     elif result == -3:
-        await update.message.reply_text("您已经使用过该卡密。")
+        await update.message.reply_text("You have already used this code.")
     else:
         user = db.get_user(user_id)
         await update.message.reply_text(
-            f"卡密使用成功！\n获得积分：{result}\n当前积分：{user['balance']}"
+            f"Code redeemed successfully!\nPoints Received: {result}\nCurrent Points: {user['balance']}"
         )
